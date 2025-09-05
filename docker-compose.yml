@@ -8,13 +8,13 @@ services:
     env_file:
       - .env
     ports:
-      - "8181:80" 
+      - "8000:8000" 
     networks:
       - backend   
     command: >
       sh -c "pip install -r /app/requirements.txt &&
             alembic upgrade head &&
-            uvicorn src.main:app --host 0.0.0.0 --port 80 --reload"
+            uvicorn src.main:app --host 0.0.0.0 --reload"
     restart: unless-stopped
 
 networks:
