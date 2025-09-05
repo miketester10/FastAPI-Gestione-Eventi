@@ -1,5 +1,5 @@
 services:
-  web:
+  fastapi_app:
     image: python:3.11-alpine
     container_name: FastApi_Eventi
     working_dir: /app
