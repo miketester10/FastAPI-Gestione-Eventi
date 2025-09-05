@@ -1,0 +1,22 @@
+services:
+  web:
+    image: python:3.11-alpine
+    container_name: FastApi_Eventi
+    working_dir: /app
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    ports:
+      - "8181:80" 
+    networks:
+      - backend   
+    command: >
+      sh -c "pip install -r /app/requirements.txt &&
+            alembic upgrade head &&
+            uvicorn src.main:app --host 0.0.0.0 --port 80 --reload"
+    restart: unless-stopped
+
+networks:
+  backend:
+    external: true
