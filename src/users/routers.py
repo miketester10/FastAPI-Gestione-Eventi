@@ -74,7 +74,6 @@ async def refresh_token(
     if not result.refresh_token or e.decrypt(result.refresh_token) != provided_refresh_token:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-
     tokens = sign_jwt(result.id)
     encrypted_refresh = e.encrypt(tokens["refresh_token"])
     result.refresh_token = encrypted_refresh
