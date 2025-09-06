@@ -1,3 +1,5 @@
+from typing import Dict
+
 import time
 
 import jwt
@@ -16,7 +18,7 @@ def sign_jwt(user_id: int) -> dict[str, str]:
     )
     # Refresh Token
     rt_expiration_time = int(time.time()) + s.jwt_refresh_expires_in * 60
-    rt_payload = {"user_id": user_id, "type": "refresh","exp": rt_expiration_time}
+    rt_payload = {"user_id": user_id, "type": "refresh", "exp": rt_expiration_time}
     refresh_token = jwt.encode(
         rt_payload, s.jwt_refresh_secret.get_secret_value(), algorithm=s.algorithm
     )
@@ -41,10 +43,19 @@ class JWTBearer(HTTPBearer):
         super().__init__(auto_error=auto_error)
         self.is_refresh_token = is_refresh_token
 
-    async def __call__(self, request: Request) -> int:
+    async def __call__(self, request: Request) -> Dict[str, int | str] | int:
         credentials: HTTPAuthorizationCredentials = await super().__call__(request)
         if not credentials or not credentials.scheme == "Bearer":
             raise HTTPException(status_code=401, detail="Invalid authentication.")
         decoded_token = decode_jwt(credentials.credentials, self.is_refresh_token)
 
-        return decoded_token.get("user_id")
+        user_id: int = decoded_token.get("user_id")
+        provided_token = credentials.credentials
+        auth_data: Dict[str, int | str] = {
+            "user_id": user_id,
+            "provided_token": provided_token,
+        }
+
+        if self.is_refresh_token:
+            return auth_data
+        return user_id

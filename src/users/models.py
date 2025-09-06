@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from passlib.context import CryptContext
 from sqlalchemy import Integer, Text, Boolean, func, DateTime
@@ -18,7 +18,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(Text, unique=True)
     __password: Mapped[str] = mapped_column("password", Text)
     is_admin: Mapped[bool] = mapped_column(Boolean, deferred=False)
-    refresh_token: Mapped[str] = mapped_column(Text, nullable=True)
+    refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

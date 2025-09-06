@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +10,8 @@ from src.events.schemas import EventResponse
 from src.security import sign_jwt, JWTBearer
 from src.users.models import User
 from src.users.schemas import UserCreate, UserResponse, UserUpdate, UserLogin
+
+from src.encryption import encryption as e
 
 router = APIRouter(
     prefix="/users",
@@ -45,20 +47,41 @@ async def login(payload: UserLogin, session: AsyncSession = Depends(get_async_se
     result = query_result.first()
     if not result or not result.check_password(payload.password):
         raise HTTPException(status_code=401, detail="Wrong user or password")
-    return sign_jwt(result.id)
+
+    tokens = sign_jwt(result.id)
+    encrypted_refresh = e.encrypt(tokens["refresh_token"])
+    result.refresh_token = encrypted_refresh
+
+    await session.commit()
+
+    return tokens
 
 
 @router.post("/refresh-token")
 async def refresh_token(
     session: AsyncSession = Depends(get_async_session),
-    user_id: int = Depends(JWTBearer(is_refresh_token=True)),
+    auth_data: Dict[str, int | str] = Depends(JWTBearer(is_refresh_token=True)),
 ):
+    user_id: int = auth_data["user_id"]
+    provided_refresh_token: str = auth_data["provided_token"]
+
     query = select(User).where(User.id == user_id)
     query_result = await session.scalars(query)
     result = query_result.first()
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
-    return sign_jwt(result.id)
+
+    if not result.refresh_token or e.decrypt(result.refresh_token) != provided_refresh_token:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
+    tokens = sign_jwt(result.id)
+    encrypted_refresh = e.encrypt(tokens["refresh_token"])
+    result.refresh_token = encrypted_refresh
+
+    await session.commit()
+
+    return tokens
 
 
 @router.post("/", response_model=UserResponse, status_code=201)
@@ -135,3 +158,19 @@ async def get_user_events(
     if result is None:
         raise HTTPException(status_code=404, detail="User not found")
     return result.events
+
+
+@router.delete("/logout", status_code=204)
+async def logout(
+    session: AsyncSession = Depends(get_async_session),
+    user_id: int = Depends(JWTBearer()),
+):
+    query = select(User).where(User.id == user_id)
+    query_result = await session.scalars(query)
+    result = query_result.first()
+    if result is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result.refresh_token = None
+    await session.commit()
+    return None

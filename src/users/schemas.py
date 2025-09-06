@@ -20,7 +20,6 @@ class UserCreate(CustomBase):
     password: str = Field(
         default=..., min_length=8, max_length=30, examples=["ciccio123"]
     )
-    is_admin: bool = Field(False)
 
 
 class UserUpdate(CustomBase):
