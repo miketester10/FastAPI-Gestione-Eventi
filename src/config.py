@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     jwt_refresh_secret: SecretStr
     jwt_refresh_expires_in: int
 
-    encryption_key: str
+    encryption_key: SecretStr
 
 
 settings = Settings()

@@ -8,14 +8,11 @@ from src.config import settings as s
 
 
 class Encryption:
-    __encryption_key: str = s.encryption_key
-
-    def __init__(self):
-        self.key = sha256(self.__encryption_key.encode()).digest()
+    __key = sha256(s.encryption_key.get_secret_value().encode()).digest()
 
     def encrypt(self, plaintext: str) -> str:
         iv = os.urandom(16)
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        cipher = AES.new(self.__key, AES.MODE_CBC, iv)
         ciphertext = cipher.encrypt(pad(plaintext.encode(), AES.block_size))
         return base64.b64encode(iv + ciphertext).decode("utf-8")
 
@@ -23,7 +20,7 @@ class Encryption:
         raw_data = base64.b64decode(encrypted_text)
         iv = raw_data[:16]
         ciphertext = raw_data[16:]
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        cipher = AES.new(self.__key, AES.MODE_CBC, iv)
         decrypted = unpad(cipher.decrypt(ciphertext), AES.block_size)
         return decrypted.decode("utf-8")
 
