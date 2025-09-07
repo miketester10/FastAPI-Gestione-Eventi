@@ -71,7 +71,10 @@ async def refresh_token(
     if not result:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not result.refresh_token or e.decrypt(result.refresh_token) != provided_refresh_token:
+    if (
+        not result.refresh_token
+        or e.decrypt(result.refresh_token) != provided_refresh_token
+    ):
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     tokens = sign_jwt(result.id)
@@ -167,9 +170,11 @@ async def logout(
     query = select(User).where(User.id == user_id)
     query_result = await session.scalars(query)
     result = query_result.first()
-    if result is None:
+    if not result:
         raise HTTPException(status_code=404, detail="User not found")
 
-    result.refresh_token = None
-    await session.commit()
+    if result.refresh_token:
+        result.refresh_token = None
+        await session.commit()
+
     return None

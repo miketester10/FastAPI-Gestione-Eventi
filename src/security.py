@@ -45,17 +45,15 @@ class JWTBearer(HTTPBearer):
 
     async def __call__(self, request: Request) -> Dict[str, int | str] | int:
         credentials: HTTPAuthorizationCredentials = await super().__call__(request)
-        if not credentials or not credentials.scheme == "Bearer":
-            raise HTTPException(status_code=401, detail="Invalid authentication.")
-        decoded_token = decode_jwt(credentials.credentials, self.is_refresh_token)
 
-        user_id: int = decoded_token.get("user_id")
         provided_token = credentials.credentials
-        auth_data: Dict[str, int | str] = {
-            "user_id": user_id,
-            "provided_token": provided_token,
-        }
+        decoded_payload = decode_jwt(provided_token, self.is_refresh_token)
+        user_id: int = decoded_payload.get("user_id")
 
         if self.is_refresh_token:
+            auth_data: Dict[str, int | str] = {
+                "user_id": user_id,
+                "provided_token": provided_token,
+            }
             return auth_data
         return user_id
