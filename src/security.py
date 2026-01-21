@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Literal
 from pydantic import BaseModel
 
@@ -10,11 +11,14 @@ from starlette.status import HTTP_403_FORBIDDEN
 
 from src.config import settings as s
 
+class TokenType(str, Enum):
+    ACCESS_TOKEN = "access_token"
+    REFRESH_TOKEN = "refresh_token"
 
 
 class JWTPayload(BaseModel):
     user_id: int
-    type: Literal["access_token", "refresh_token"]
+    type: TokenType
     exp: int
     iat: int
 
@@ -29,13 +33,13 @@ def sign_jwt(user_id: int) -> dict[str, str]:
     iat = int(time.time())
     # Access Token
     at_expiration_time = iat + s.jwt_expires_in * 60
-    at_payload = {"user_id": user_id, "type": "access_token", "exp": at_expiration_time, "iat": iat}
+    at_payload = {"user_id": user_id, "type": TokenType.ACCESS_TOKEN, "exp": at_expiration_time, "iat": iat}
     access_token = jwt.encode(
         at_payload, s.jwt_secret.get_secret_value(), algorithm=s.algorithm
     )
     # Refresh Token
     rt_expiration_time = iat + s.jwt_refresh_expires_in * 60
-    rt_payload = {"user_id": user_id, "type": "refresh_token", "exp": rt_expiration_time, "iat": iat }
+    rt_payload = {"user_id": user_id, "type": TokenType.REFRESH_TOKEN, "exp": rt_expiration_time, "iat": iat }
     refresh_token = jwt.encode(
         rt_payload, s.jwt_refresh_secret.get_secret_value(), algorithm=s.algorithm
     )
