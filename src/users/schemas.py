@@ -34,9 +34,9 @@ class UserUpdate(CustomBase):
 
 
 class UserLogin(CustomBase):
-    username: Optional[str] = Field(
-        None, min_length=5, max_length=50, examples=["ciccio"]
+    username: str = Field(
+        ..., min_length=5, max_length=50, examples=["ciccio"]
     )
-    password: Optional[str] = Field(
-        None, min_length=8, max_length=30, examples=["ciccio123"]
+    password: str = Field(
+        ..., min_length=8, max_length=30, examples=["ciccio123"]
     )
