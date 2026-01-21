@@ -43,7 +43,7 @@ def sign_jwt(user_id: int) -> dict[TokenType, str]:
     refresh_token = jwt.encode(
         rt_payload, s.jwt_refresh_secret.get_secret_value(), algorithm=s.algorithm
     )
-    return {TokenType.ACCESS_TOKEN: access_token, TokenType.REFRESH_TOKEN: refresh_token}
+    return { TokenType.ACCESS_TOKEN: access_token, TokenType.REFRESH_TOKEN: refresh_token }
 
 
 def decode_jwt(token: str, is_refresh_token: bool) -> JWTPayload:
