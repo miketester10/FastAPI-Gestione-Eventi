@@ -235,19 +235,21 @@ L'applicazione sarà disponibile su `http://localhost:8000`
 
 ## 🚀 Funzionalità Avanzate
 
-### Sistema Prenotazioni Intelligente
+### 🔄 Gestione Concorrenza (Race Conditions)
 
-- Controllo automatico capacità eventi
-- Prevenzione overbooking
-- Gestione posti disponibili in tempo reale
+Il sistema implementa un robusto meccanismo di locking per prevenire overbooking durante picchi di traffico:
 
-### Crittografia Dati Sensibili
+- **Pessimistic Locking**: Utilizzo di `SELECT ... FOR UPDATE` (via SQLAlchemy `with_for_update`)
+- **Transazioni Atomiche**: Blocchi `async with session.begin()` per garantire ACID
+- **Safe Capacity Checks**: Il controllo dei posti disponibili avviene sempre all'interno del lock del database
 
-- Refresh token crittografati
-- Chiavi di crittografia configurabili
-- Algoritmo AES-256-CBC
+### 🛡️ Type Safety & Security
 
-### Gestione Contenuto Flessibile
+- **Pydantic Models per JWT**: Payload dei token validati a runtime con modelli Pydantic stretti (`JWTPayload` con `Literal`)
+- **Typed Contexts**: Utilizzo di Pydantic per il passaggio di contesti di autenticazione
+- **Crittografia AES**: Refresh token crittografati a riposo (AES-256-CBC)
+
+### 💾 Gestione Contenuto Flessibile
 
 - Campi JSONB per contenuto dinamico
 - Struttura dati estendibile

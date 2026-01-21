@@ -1,4 +1,5 @@
-from typing import Dict
+from typing import Literal
+from pydantic import BaseModel
 
 import time
 
@@ -10,7 +11,21 @@ from starlette.status import HTTP_403_FORBIDDEN
 from src.config import settings as s
 
 
+
+class JWTPayload(BaseModel):
+    user_id: int
+    type: Literal["access_token", "refresh_token"]
+    exp: int
+    iat: int
+
+
+class RefreshTokenContext(BaseModel):
+    user_id: int
+    provided_token: str
+
+
 def sign_jwt(user_id: int) -> dict[str, str]:
+
     iat = int(time.time())
     # Access Token
     at_expiration_time = iat + s.jwt_expires_in * 60
@@ -27,13 +42,14 @@ def sign_jwt(user_id: int) -> dict[str, str]:
     return {"access_token": access_token, "refresh_token": refresh_token}
 
 
-def decode_jwt(token: str, is_refresh_token: bool) -> dict[str, str | int]:
+def decode_jwt(token: str, is_refresh_token: bool) -> JWTPayload:
     secret = s.jwt_secret.get_secret_value()
     if is_refresh_token:
         secret = s.jwt_refresh_secret.get_secret_value()
 
     try:
-        return jwt.decode(token, secret, algorithms=[s.algorithm])
+        decoded = jwt.decode(token, secret, algorithms=[s.algorithm])
+        return JWTPayload(**decoded)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Expired token.")
     except jwt.InvalidTokenError:
@@ -45,7 +61,7 @@ class JWTBearer(HTTPBearer):
         super().__init__(auto_error=auto_error)
         self.is_refresh_token = is_refresh_token
 
-    async def __call__(self, request: Request) -> Dict[str, int | str] | int:
+    async def __call__(self, request: Request) -> RefreshTokenContext | int:
         credentials: HTTPAuthorizationCredentials | None = await super().__call__(request)
         if not credentials:
             raise HTTPException(
@@ -54,13 +70,12 @@ class JWTBearer(HTTPBearer):
                 )
 
         provided_token = credentials.credentials
-        decoded_payload = decode_jwt(provided_token, self.is_refresh_token)
-        user_id: int = decoded_payload.get("user_id")
+        decoded_payload: JWTPayload = decode_jwt(provided_token, self.is_refresh_token)
+        user_id: int = decoded_payload.user_id
 
         if self.is_refresh_token:
-            auth_data: Dict[str, int | str] = {
-                "user_id": user_id,
-                "provided_token": provided_token,
-            }
-            return auth_data
+            return RefreshTokenContext(
+                user_id=user_id,
+                provided_token=provided_token,
+            )
         return user_id

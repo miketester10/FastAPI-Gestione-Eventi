@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 
 from src.database import get_async_session
 from src.events.schemas import EventResponse
-from src.security import sign_jwt, JWTBearer
+from src.security import sign_jwt, JWTBearer, RefreshTokenContext
 from src.users.models import User
 from src.users.schemas import UserCreate, UserResponse, UserUpdate, UserLogin
 
@@ -60,10 +60,10 @@ async def login(payload: UserLogin, session: AsyncSession = Depends(get_async_se
 @router.post("/refresh-token")
 async def refresh_token(
     session: AsyncSession = Depends(get_async_session),
-    auth_data: Dict[str, int | str] = Depends(JWTBearer(is_refresh_token=True)),
+    auth_data: RefreshTokenContext = Depends(JWTBearer(is_refresh_token=True)),
 ):
-    user_id: int = auth_data["user_id"]
-    provided_refresh_token: str = auth_data["provided_token"]
+    user_id: int = auth_data.user_id
+    provided_refresh_token: str = auth_data.provided_token
 
     query = select(User).where(User.id == user_id)
     query_result = await session.scalars(query)

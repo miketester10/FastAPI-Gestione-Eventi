@@ -34,35 +34,69 @@ async def get_reservations(
 @router.post("/", response_model=ReservationResponse, status_code=201)
 async def create_reservation(
     payload: ReservationCreate,
-    session: AsyncSession = Depends(get_async_session),
-    user_id: int = Depends(JWTBearer()),
+    session: AsyncSession = Depends(get_async_session),  # la sessione viene gestita da FastAPI
+    user_id: int = Depends(JWTBearer()),                 # otteniamo l'id dell'utente dal JWT
 ):
-    # verifico se non supera il limite di posti disponibili
-    # prima recupero i posti disponibili per l'evento
-    query = select(Event.capacity).where(Event.id == payload.event_id)
-    query_result = await session.scalars(query)
-    max_capacity = query_result.first()
-    if not max_capacity:
-        raise HTTPException(status_code=404, detail="Event not found")
+    # ---------------------------------------------
+    # 1️⃣ Inizio una transazione esplicita
+    # Questo blocco garantisce che tutte le operazioni
+    # qui dentro siano atomiche: commit se tutto va bene,
+    # rollback automatico se c'è un errore
+    # ---------------------------------------------
+    async with session.begin():  
+        
+        # ---------------------------------------------
+        # 2️⃣ Seleziono l'evento e applico un lock di tipo FOR UPDATE
+        # Questo impedisce ad altre transazioni di modificare
+        # lo stesso record fino a quando non finiamo questa transazione
+        # ---------------------------------------------
+        query = select(Event).where(Event.id == payload.event_id).with_for_update()
+        event = (await session.scalars(query)).first()  # prendo il primo risultato
 
-    # poi recupero il numero di posti già prenotati
-    query = select(Reservation.num_guests).where(
-        Reservation.event_id == payload.event_id
-    )
-    query_result = await session.scalars(query)
-    num_guests_array = query_result.all()
-    num_guest = sum(num_guests_array)
+        # ---------------------------------------------
+        # 3️⃣ Controllo se l'evento esiste
+        # Se non esiste, lanciamo un'eccezione HTTP 404
+        # ---------------------------------------------
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
 
-    # se il numero di posti disponibili è minore del numero di posti prenotati + il numero di posti richiesti
-    if num_guest + payload.num_guests > max_capacity:
-        raise HTTPException(status_code=400, detail="Not enough seats available")
+        # ---------------------------------------------
+        # 4️⃣ Calcolo il numero di posti già prenotati
+        # Sommo tutti i num_guests delle prenotazioni esistenti
+        # ---------------------------------------------
+        query = select(Reservation.num_guests).where(
+            Reservation.event_id == payload.event_id
+        )
+        reservations = await session.scalars(query)
+        current_reservations = sum(reservations.all())
 
-    new_reservation = Reservation(
-        num_guests=payload.num_guests, user_id=user_id, event_id=payload.event_id
-    )
+        # ---------------------------------------------
+        # 5️⃣ Controllo se ci sono abbastanza posti disponibili
+        # Se la somma dei posti già prenotati + quelli richiesti
+        # supera la capacità dell'evento, lanciamo un errore
+        # ---------------------------------------------
+        if current_reservations + payload.num_guests > event.capacity:
+            raise HTTPException(status_code=400, detail="Not enough seats available")
 
-    session.add(new_reservation)
-    await session.commit()
+        # ---------------------------------------------
+        # 6️⃣ Creo la nuova prenotazione
+        # Non serve fare commit qui: la transazione esplicita
+        # lo farà automaticamente alla fine del blocco
+        # ---------------------------------------------
+        new_reservation = Reservation(
+            num_guests=payload.num_guests,
+            user_id=user_id,
+            event_id=payload.event_id
+        )
+        session.add(new_reservation)  # aggiungiamo l'oggetto alla sessione
+
+    # ---------------------------------------------
+    # 7️⃣ Fine del blocco `async with session.begin()`
+    # - se tutto va bene → commit automatico
+    # - se c'è un errore → rollback automatico
+    # La sessione verrà chiusa automaticamente da Depends(get_async_session)
+    # ---------------------------------------------
+
     return new_reservation
 
 
