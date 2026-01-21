@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 
 from src.database import get_async_session
 from src.events.schemas import EventResponse
-from src.security import sign_jwt, JWTBearer, RefreshTokenContext
+from src.security import sign_jwt, JWTBearer, RefreshTokenContext, TokenType
 from src.users.models import User
 from src.users.schemas import UserCreate, UserResponse, UserUpdate, UserLogin
 
@@ -49,7 +49,7 @@ async def login(payload: UserLogin, session: AsyncSession = Depends(get_async_se
         raise HTTPException(status_code=401, detail="Wrong user or password")
 
     tokens = sign_jwt(result.id)
-    encrypted_refresh = e.encrypt(tokens["refresh_token"])
+    encrypted_refresh = e.encrypt(tokens[TokenType.REFRESH_TOKEN])
     result.refresh_token = encrypted_refresh
 
     await session.commit()
@@ -78,7 +78,7 @@ async def refresh_token(
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     tokens = sign_jwt(result.id)
-    encrypted_refresh = e.encrypt(tokens["refresh_token"])
+    encrypted_refresh = e.encrypt(tokens[TokenType.REFRESH_TOKEN])
     result.refresh_token = encrypted_refresh
 
     await session.commit()

@@ -28,7 +28,7 @@ class RefreshTokenContext(BaseModel):
     provided_token: str
 
 
-def sign_jwt(user_id: int) -> dict[str, str]:
+def sign_jwt(user_id: int) -> dict[TokenType, str]:
 
     iat = int(time.time())
     # Access Token
@@ -43,7 +43,7 @@ def sign_jwt(user_id: int) -> dict[str, str]:
     refresh_token = jwt.encode(
         rt_payload, s.jwt_refresh_secret.get_secret_value(), algorithm=s.algorithm
     )
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return {TokenType.ACCESS_TOKEN: access_token, TokenType.REFRESH_TOKEN: refresh_token}
 
 
 def decode_jwt(token: str, is_refresh_token: bool) -> JWTPayload:
